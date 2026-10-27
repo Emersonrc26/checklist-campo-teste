@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.APP_CONFIG = {variant:"teste", db:"checklist-campo-teste"}; window.APP_VERSION = "v5"; window.APP_NEWS = [{"t":"Aviso de novidades","d":"Agora fica na tela até você tocar em Entendi."},{"t":"Grupo JobCard\u0027s","d":"No menu ☰, os checklists MTM RAR, SARx e RGR com lista de materiais."}];</script>
+<script>window.APP_CONFIG = {variant:"teste", db:"checklist-campo-teste"}; window.APP_VERSION = "v6"; window.APP_NEWS = [{"t":"JobCard\u0027s sem fotos","d":"Os relatórios do JobCard não pedem mais fotos de evidência."}];</script>
 <script src="logos.js"></script>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -464,9 +464,8 @@ function jobcard(id, modelo, data, cats){
   return {id, kind:"JobCard", client:"jobcards", name:"MTM "+modelo, short:"JobCard_MTM_"+modelo, title:`JOBCARD MTM ${modelo} · CHECKLIST DE MANUTENÇÃO PREVENTIVA`,
     modelo, modelos:[modelo], labels:JC_LABELS, sections:[
     ...mats,
-    ...data.map(([title, items]) => ({type:"checklist", title, opts:JC_ST, items, photos:[], ev:true})),
-    {type:"fields", title:"Encerramento", fields:[{id:"pecas",label:"Peças necessárias",area:true,ph:"Peças a solicitar ou que foram substituídas (opcional)"},{id:"pendencias",label:"Pendências",def:"N/A"},{id:"obsAd",label:"Comentários / ação necessária",area:true}]},
-    EXTRA]};
+    ...data.map(([title, items]) => ({type:"checklist", title, opts:JC_ST, items, photos:[]})),
+    {type:"fields", title:"Encerramento", fields:[{id:"pecas",label:"Peças necessárias",area:true,ph:"Peças a solicitar ou que foram substituídas (opcional)"},{id:"pendencias",label:"Pendências",def:"N/A"},{id:"obsAd",label:"Comentários / ação necessária",area:true}]}]};
 }
 TEMPLATES.push(
   jobcard("jc-rar", "RAR", JC_DATA.rar, ["Geral","Ferramentas especiais","RAPS","RAR"]),
@@ -798,8 +797,7 @@ function sectionHTML(s, si, numRef){
     const extras = (R.extra["s"+si]||[]).map(x => itemHTML(x.k, ++numRef.n, {t:x.t, opts:s.opts}, x)).join("");
     body = `<div class="items" id="items-${si}">${items}${extras}</div>
       <button class="btn ghost" data-act="addx" data-s="${si}" type="button">${ICON.plus} Adicionar ${s.mat?"material":"item"}</button>
-      ${s.photos.length?`<div class="lbl">Registro fotográfico</div>${s.photos.map((g, gi) => pgroupHTML("s"+si+"g"+gi, g, false)).join("")}`:""}
-      ${s.ev?pgroupHTML("s"+si+"ev", "Evidências desta seção", true, true):""}`;
+      ${s.photos.length?`<div class="lbl">Registro fotográfico</div>${s.photos.map((g, gi) => pgroupHTML("s"+si+"g"+gi, g, false)).join("")}`:""}`;
     cnt = s.items.length+" itens";
   }
   if(s.type==="activities"){
@@ -1202,7 +1200,6 @@ function buildPdf(r){
             return [++itemN, x.t + (x.cod ? "\nCód. " + x.cod : ""), [read, a.obs].filter(Boolean).join("\n"), a.status ? {content:a.status, tone:TONE[a.status]||"na"} : {content:"Pendente", styles:{textColor:MUT, fontStyle:"italic"}}]; }),
           columnStyles:{0:{cellWidth:9, halign:"center", textColor:MUT}, 1:{cellWidth:s.mat ? 78 : 100}, 3:{cellWidth:25, halign:"center", fontStyle:"bold"}},
           didParseCell: d => { if(d.section==="head" && d.column.index===3) d.cell.styles.halign = "center"; toneCell(d, 3); } });
-        if(s.ev) photos("Evidências", r.photos["s"+si+"ev"]);
         return;
       }
       table({ head:[["Sn","Item de inspeção","Observação","Bom","Reparar","Substituir","N/D"]],
