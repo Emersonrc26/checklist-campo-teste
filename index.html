@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.APP_CONFIG = {variant:"teste", db:"checklist-campo-teste"}; window.APP_VERSION = "v7"; window.APP_NEWS = [{"t":"Excluir vários relatórios","d":"Em Relatórios neste aparelho, toque em Selecionar, marque os que quiser e exclua de uma vez."}];</script>
+<script>window.APP_CONFIG = {variant:"teste", db:"checklist-campo-teste"}; window.APP_VERSION = "v8"; window.APP_NEWS = [{"t":"Clientes Variados","d":"Agora com os MTM e a Corretiva geral, sem o campo OM."},{"t":"Foto do espaço em disco","d":"Na seção Software, o item Verificar espaço em disco tem uma foto opcional."}];</script>
 <script src="logos.js"></script>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -320,7 +320,9 @@ const TONE = {"Bom":"ok","Reparar":"warn","Substituir":"bad","N/D":"na","Sim":"o
 
 const SOLAR = ["Limpeza dos painéis solares","Reaperto do painel elétrico","Teste dos componentes (DC/DC, inversor, controlador)",{t:"Verificar tensão do banco de baterias",unit:"V"},"Verificar condição dos polos das baterias","Checar conectores MC4 dos painéis solares","Checar limpeza e conservação do container"];
 const SOLAR_PH = ["Limpeza dos painéis solares","Tensão do banco de baterias","Condição dos polos das baterias"];
-const SOFTWARE = ["Verificar processamento de dados","Verificar se há atualizações de software disponíveis","Verificar atualização em tempo real","Verificar licenças do sistema","Verificar espaço em disco","Verificar atualizações do Windows","Realizar limpeza de logs","Verificar data quality"];
+// photo: o item ganha uma foto opcional (aparece no PDF logo abaixo da tabela da seção)
+const DISCO = {t:"Verificar espaço em disco", photo:"Espaço em disco"};
+const SOFTWARE = ["Verificar processamento de dados","Verificar se há atualizações de software disponíveis","Verificar atualização em tempo real","Verificar licenças do sistema",DISCO,"Verificar atualizações do Windows","Realizar limpeza de logs","Verificar data quality"];
 const FINAL = {type:"final", title:"Informações adicionais"};
 const EXTRA = {type:"photos", title:"Fotos adicionais", groups:["Outras evidências"], free:true, optional:true};
 const T_PREV = "RELATÓRIO DE MANUTENÇÃO PREVENTIVA GROUNDPROBE";
@@ -352,7 +354,7 @@ const TEMPLATES = [
     {type:"checklist", title:"Radar", items:["Instalações físicas do radar","Condições dos cabeamentos do sistema","Condições do aterramento do sistema","Limpeza e conservação do radar","Nivelamento do radar","Condições da Weather Station","Verificar limpeza e alinhamento da câmera","Checar comunicação entre os dispositivos de rede","Checar alimentação e estado da REM","Condições gerais da praça de monitoramento","Condições da antena do radar"],
       photos:["Instalações físicas do radar","Condições dos cabeamentos do sistema","Condições do aterramento do sistema","Organização da praça de monitoramento","Nivelamento do radar","Weather Station","Câmera","Tool box","R.E.M"]},
     {type:"checklist", title:"Sistema solar", items:["Limpeza dos painéis solares","Reaperto das conexões elétricas","Teste dos componentes (DC/DC, inversor, controlador)",{t:"Verificar tensão do banco de baterias",unit:"V"},"Verificar condição dos polos das baterias","Checar conectores MC4 dos painéis solares","Checar limpeza e conservação do sistema"], photos:SOLAR_PH},
-    {type:"checklist", title:"Software", items:["Verificar processamento de dados",{t:"Versão do software instalado",unit:"ver."},"Verificar atualização em tempo real","Verificar licenças do sistema","Verificar espaço em disco","Verificar atualizações do Windows","Realizar limpeza de logs","Verificar data quality"], photos:[]},
+    {type:"checklist", title:"Software", items:["Verificar processamento de dados",{t:"Versão do software instalado",unit:"ver."},"Verificar atualização em tempo real","Verificar licenças do sistema",DISCO,"Verificar atualizações do Windows","Realizar limpeza de logs","Verificar data quality"], photos:[]},
     {type:"checklist", title:"Manutenção de trailer", items:["Verificar integridade física do trailer","Limpeza do trailer"], photos:["Trailer"]},
     {type:"checklist", title:"RAPS", items:["Inspeção da parte física","Inspeção do motor","Limpeza/organização do interior da RAPS","Inspeção do cano de descarga","Inspeção da solenoide do acelerador","Nível dos fluidos do motor","Inspeção das mangueiras e tubulações","Inspeção do sistema elétrico"],
       photos:["Parte física","Parte interna","Filtros","Mangueiras e abraçadeiras","Conexões elétricas"]},
@@ -485,6 +487,8 @@ TEMPLATES.push(
   jobcard("jc-rar", "RAR", JC_DATA.rar, ["Geral","Ferramentas especiais","RAPS","RAR"]),
   jobcard("jc-sarx", "SARx", JC_DATA.sarx, ["Geral","SARx"]),
   jobcard("jc-rgr", "RGR", JC_DATA.rgr, ["Geral"]));
+// Clientes Variados: os mesmos MTM e a Corretiva geral da Vale, sem o campo OM (é do Dynaway da Vale)
+TEMPLATES.push(...["mtm-doppler","mtm-sarx","mtm-series","corretiva"].map(id => ({...TEMPLATES.find(t => t.id === id), id:id+"-var", client:"variados", noOm:true})));
 const lab = (T, k, d) => (T.labels && T.labels[k]) || d;
 const YN_INV = {"Sim":"warn","Não":"ok"};  // em "manutenção adicional?" e "pendência?", Sim é o alerta
 /* Clientes: cada modelo pertence a um grupo. Os modelos de "Clientes Variados" entram aqui quando chegarem os checklists. */
@@ -680,7 +684,7 @@ function audit(r){
   const T = tplById(r.templateId), miss = []; let total = 0, done = 0;
   const chk = (ok, label, anchor) => { total++; if(ok) done++; else miss.push({label, anchor}); };
   const h = r.header;
-  chk(h.resp, "Responsável técnico", "f-resp"); chk(h.om, lab(T, "om", "Número da OM"), "f-om"); chk(h.local, lab(T, "local", "Localidade"), "f-local");
+  chk(h.resp, "Responsável técnico", "f-resp"); if(!T.noOm) chk(h.om, lab(T, "om", "Número da OM"), "f-om"); chk(h.local, lab(T, "local", "Localidade"), "f-local");
   chk(h.data, "Data de execução", "f-data"); chk(h.tag, lab(T, "tag", "TAG do radar"), "f-tag"); chk(h.modelo, "Modelo do radar", "f-modelo");
   chk(r.team.some(m => m.nome && m.inicio && m.fim), "Equipe: nome e horários", "sec-team");
   T.sections.forEach((s, si) => {
@@ -692,7 +696,7 @@ function audit(r){
     if(s.type==="photos" && !s.optional) s.groups.forEach((g, gi) => { const k="s"+si+"g"+gi; chk((r.photos[k]||[]).length, s.title+": ao menos 1 foto", "pg-"+k); });
     if(s.type==="fields") s.fields.filter(f=>f.req).forEach(f => chk((r.texts[f.id]||"").trim(), s.title+": "+f.label, "f-"+f.id));
     if(s.type==="chips" && s.req) chk(r.chips.length, "Classe de falha", "sec-"+si);
-    if(s.type==="final"){ chk(r.final.omFin, "OM finalizada?", "fin-omFin"); chk(r.final.cond, "Condição geral do radar", "fin-cond"); chk(r.final.manut, "Manutenção adicional?", "fin-manut"); chk(r.final.pend, "Há pendência?", "fin-pend"); }
+    if(s.type==="final"){ if(!T.noOm) chk(r.final.omFin, "OM finalizada?", "fin-omFin"); chk(r.final.cond, "Condição geral do radar", "fin-cond"); chk(r.final.manut, "Manutenção adicional?", "fin-manut"); chk(r.final.pend, "Há pendência?", "fin-pend"); }
   });
   return {total, done, miss};
 }
@@ -762,7 +766,7 @@ function renderSaved(){
   const info = m => { if(m.broken) return [`Relatório que não pôde ser aberto`, m.updatedAt ? fmtDT(m.updatedAt) : ""];
     const T = tplById(m.templateId);
     return [`${esc(T.name)}<span class="pill ${m.status==="finalizado"?"done":"draft"}">${m.status==="finalizado"?"PDF gerado":"Rascunho "+m.pct+"%"}</span>`,
-      `${T.labels ? "JIRA" : "OM"} ${esc(m.om||"—")} · ${esc(m.tag||"sem TAG")} · ${fmtDT(m.updatedAt)}`]; };
+      `${T.noOm ? "" : `${T.labels ? "JIRA" : "OM"} ${esc(m.om||"—")} · `}${esc(m.tag||"sem TAG")} · ${fmtDT(m.updatedAt)}`]; };
   el.innerHTML = list.length ? list.map(m => { const [t, meta] = info(m);
     if(selMode){ const on = selIds.has(m.id);
       return `<button class="rep pick${on?" on":""}" data-act="pick" data-id="${m.id}" role="checkbox" aria-checked="${on}" type="button"><span class="box" aria-hidden="true">${on?ICON.check:""}</span><span class="t">${t}</span><span class="m">${meta}</span></button>`; }
@@ -817,7 +821,7 @@ function itemHTML(k, n, it, extra){
     <div class="row-obs${it.unit?" read":""}">
       ${it.unit?`<div class="reading"><input type="${it.unit==="ver."?"text":"number"}" inputmode="decimal" step="any" data-bind="answers.${k}.val" value="${esc(a.val)}" placeholder="${esc(it.ph||"Leitura")}" aria-label="${esc(it.ph||"Leitura")}"><span>${esc(it.unit)}</span></div>`:""}
       <input type="text" class="obs${need && !a.obs?" need":""}" data-bind="answers.${k}.obs" value="${esc(a.obs)}" placeholder="${need?needPh(a.status):"Observação (opcional)"}">
-    </div></div>`;
+    </div>${it.photo ? pgroupHTML(k+"p", "Foto: "+it.photo, false, true) : ""}</div>`;
 }
 function thumbHTML(gk, p, free){
   return `<div class="th"><div class="im"><img src="${p.data}" alt="${esc(p.caption||"Foto")}"><button class="del" data-act="delph" data-g="${gk}" data-p="${p.id}" aria-label="Excluir foto" type="button">${ICON.x}</button></div>
@@ -863,7 +867,7 @@ function sectionHTML(s, si, numRef){
   }
   if(s.type==="final"){
     const F = R.final;
-    body = `<div class="f" id="fin-omFin"><span class="lbl req">OM finalizada?</span>${segHTML("final.omFin", ["Sim","Não","N/D"], F.omFin)}<input type="text" data-bind="final.omFinObs" value="${esc(F.omFinObs)}" placeholder="Observação (opcional)"></div>
+    body = `${tplById(R.templateId).noOm ? "" : `<div class="f" id="fin-omFin"><span class="lbl req">OM finalizada?</span>${segHTML("final.omFin", ["Sim","Não","N/D"], F.omFin)}<input type="text" data-bind="final.omFinObs" value="${esc(F.omFinObs)}" placeholder="Observação (opcional)"></div>`}
       <div class="f" id="fin-cond"><span class="lbl req">Condição geral do radar</span>${segHTML("final.cond", ["Operante","Operante com restrição","Inoperante"], F.cond)}<input type="text" data-bind="final.condObs" value="${esc(F.condObs)}" placeholder="Observação (opcional)"></div>
       <div class="f" id="fin-manut"><span class="lbl req">Necessária alguma manutenção adicional?</span>${segHTML("final.manut", ["Sim","Não"], F.manut, YN_INV)}<input type="text" data-bind="final.manutQual" value="${esc(F.manutQual)}" placeholder="Se sim, qual?"></div>
       <div class="f" id="fin-pend"><span class="lbl req">Há alguma pendência?</span>${segHTML("final.pend", ["Sim","Não"], F.pend, YN_INV)}<input type="text" data-bind="final.pendQual" value="${esc(F.pendQual)}" placeholder="Se sim, qual?"></div>
@@ -885,7 +889,7 @@ function renderForm(){
     <section class="sec" id="sec-id"><h3>Identificação</h3><div class="sec-b">
       <div class="f" id="f-resp"><label class="req" for="in-resp">Responsável técnico</label><input type="text" id="in-resp" data-bind="header.resp" value="${esc(h.resp)}" placeholder="Nome e sobrenome" autocomplete="name"></div>
       <div class="grid2">
-        <div class="f" id="f-om"><label class="req" for="in-om">${esc(lab(T, "om", "OM"))}</label><input type="text" class="mono" id="in-om" data-bind="header.om" value="${esc(h.om)}" ${T.labels ? 'autocapitalize="characters" placeholder="Ex.: MTM-1234"' : 'inputmode="numeric" placeholder="2026XXXXXXXXX"'}></div>
+        ${T.noOm ? "" : `<div class="f" id="f-om"><label class="req" for="in-om">${esc(lab(T, "om", "OM"))}</label><input type="text" class="mono" id="in-om" data-bind="header.om" value="${esc(h.om)}" ${T.labels ? 'autocapitalize="characters" placeholder="Ex.: MTM-1234"' : 'inputmode="numeric" placeholder="2026XXXXXXXXX"'}></div>`}
         <div class="f" id="f-data"><label class="req" for="in-data">Data de execução</label><input type="date" id="in-data" data-bind="header.data" value="${esc(h.data)}"></div>
         <div class="f" id="f-local"><label class="req" for="in-local">${esc(lab(T, "local", "Localidade"))}</label><input type="text" id="in-local" data-bind="header.local" value="${esc(h.local)}" placeholder="Nome do site"></div>
         <div class="f" id="f-tag"><label class="req" for="in-tag">${esc(lab(T, "tag", "TAG do radar"))}</label><input type="text" class="mono" id="in-tag" data-bind="header.tag" value="${esc(h.tag)}" placeholder="Ex.: SSR123" autocapitalize="characters"></div>
@@ -1225,11 +1229,17 @@ function buildPdf(r){
   };
 
   /* identificação */
-  table({ body:[
+  const tipo = T.kind==="Preventiva" ? "Manutenção preventiva (MTM)" : T.kind==="JobCard" ? "JobCard de MTM (preventiva)" : T.kind==="Inspeção" ? "Inspeção" : "Manutenção corretiva";
+  table({ body: T.noOm ? [
+      [{content:"Responsável técnico", styles:LAB}, {content:h.resp||"", colSpan:3, styles:{fontStyle:"bold"}}],
+      [{content:"Data de execução", styles:LAB}, fmtDate(h.data), {content:"TAG do radar", styles:LAB}, h.tag||""],
+      [{content:"Localidade", styles:LAB}, h.local||"", {content:"Modelo", styles:LAB}, h.modelo||""],
+      [{content:"Tipo de atividade", styles:LAB}, {content:tipo, colSpan:3}],
+    ] : [
       [{content:"Responsável técnico", styles:LAB}, {content:h.resp||"", colSpan:3, styles:{fontStyle:"bold"}}],
       [{content:lab(T, "om", "OM"), styles:LAB}, h.om||"", {content:"Data de execução", styles:LAB}, fmtDate(h.data)],
       [{content:lab(T, "local", "Localidade"), styles:LAB}, h.local||"", {content:lab(T, "tag", "TAG do radar"), styles:LAB}, h.tag||""],
-      [{content:"Modelo", styles:LAB}, h.modelo||"", {content:"Tipo de atividade", styles:LAB}, T.kind==="Preventiva" ? "Manutenção preventiva (MTM)" : T.kind==="JobCard" ? "JobCard de MTM (preventiva)" : T.kind==="Inspeção" ? "Inspeção" : "Manutenção corretiva"],
+      [{content:"Modelo", styles:LAB}, h.modelo||"", {content:"Tipo de atividade", styles:LAB}, tipo],
     ], columnStyles:{0:{cellWidth:32}, 1:{cellWidth:59}, 2:{cellWidth:32}} });
 
   heading("Equipe de atendimento à demanda");
@@ -1258,6 +1268,7 @@ function buildPdf(r){
         columnStyles:{0:{cellWidth:9, halign:"center", textColor:MUT}, 1:{cellWidth:64}, 3:{cellWidth:13.5, halign:"center", fontStyle:"bold"}, 4:{cellWidth:14.5, halign:"center", fontStyle:"bold"}, 5:{cellWidth:16.5, halign:"center", fontStyle:"bold"}, 6:{cellWidth:12, halign:"center", fontStyle:"bold"}},
         didParseCell: d => { if(d.section==="head" && d.column.index<3) d.cell.styles.halign = "left"; toneCell(d, 3); } });
       if(hasPhotos){ s.photos.forEach((g, gi) => photos(g, r.photos["s"+si+"g"+gi])); }
+      s.items.map(norm).forEach((it, ii) => { if(it.photo) photos(it.photo, r.photos["s"+si+"i"+ii+"p"]); });
     }
     if(s.type==="activities"){
       heading(s.title);
@@ -1287,7 +1298,7 @@ function buildPdf(r){
     if(s.type==="final"){
       const F = r.final;
       heading(s.title);
-      table({ head:[["Item de inspeção","Observação","Sim","Não","N/D"]],
+      if(!T.noOm) table({ head:[["Item de inspeção","Observação","Sim","Não","N/D"]],
         body:[["OM finalizada", F.omFinObs||"", mark(F.omFin==="Sim","ok"), mark(F.omFin==="Não","bad"), mark(F.omFin==="N/D","na")]],
         columnStyles:{0:{cellWidth:64}, 2:{cellWidth:14, halign:"center", fontStyle:"bold"}, 3:{cellWidth:14, halign:"center", fontStyle:"bold"}, 4:{cellWidth:14, halign:"center", fontStyle:"bold"}},
         didParseCell: d => { if(d.section==="head" && d.column.index>=2) d.cell.styles.halign = "center"; toneCell(d, 2); } });
@@ -1316,7 +1327,7 @@ function buildPdf(r){
     const tl = doc.splitTextToSize(T.title, CW - wl - wr - 6);
     doc.text(tl, cx, tl.length > 1 ? 12.5 : 14.5, {align:"center"});
     doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(...MUT);
-    doc.text(`${T.name}  ·  ${T.labels ? "JIRA" : "OM"} ${h.om || "—"}  ·  ${fmtDate(h.data)}`, cx, tl.length > 1 ? 21.5 : 20.5, {align:"center"});
+    doc.text(`${T.name}  ·  ${T.noOm ? "" : `${T.labels ? "JIRA" : "OM"} ${h.om || "—"}  ·  `}${fmtDate(h.data)}`, cx, tl.length > 1 ? 21.5 : 20.5, {align:"center"});
     doc.setDrawColor(...ACC); doc.setLineWidth(0.9); doc.line(M, 25, W - M, 25);
     doc.setDrawColor(...LINE); doc.setLineWidth(0.2); doc.line(M, H - 22, W - M, H - 22);
     doc.setFontSize(7.5); doc.setTextColor(...MUT);
@@ -1324,7 +1335,7 @@ function buildPdf(r){
     doc.text(`Página ${i} de ${n}`, W - M, H - 17.5, {align:"right"});
   }
   const clean = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"_").replace(/^_+|_+$/g,"");
-  const filename = [T.short, clean(h.tag)||"semTAG", h.om ? (T.labels ? "JIRA-" : "OM")+clean(h.om) : "", (h.data||today()).replace(/-/g,"")].filter(Boolean).join("_") + ".pdf";
+  const filename = [T.short, clean(h.tag)||"semTAG", h.om && !T.noOm ? (T.labels ? "JIRA-" : "OM")+clean(h.om) : "", (h.data||today()).replace(/-/g,"")].filter(Boolean).join("_") + ".pdf";
   return {blob: doc.output("blob"), pages: n, filename};
 }
 
