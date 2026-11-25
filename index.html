@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.APP_CONFIG = {variant:"teste", db:"checklist-campo-teste"}; window.APP_VERSION = "v15"; window.APP_NEWS = [{"t":"Conta: celular e computador","d":"Entre com e-mail e senha para ver os mesmos relatórios no celular e no computador."},{"t":"Relatórios antigos","d":"No primeiro login, o app oferece enviar para a conta os relatórios que já estão no aparelho."},{"t":"Histórico","d":"A cada 90 dias o histórico de relatórios é limpo."}];</script>
+<script>window.APP_CONFIG = {variant:"teste", db:"checklist-campo-teste"}; window.APP_VERSION = "v16"; window.APP_NEWS = [{"t":"Aviso de privacidade","d":"Texto da conta simplificado: acesse seus relatórios de qualquer dispositivo."}];</script>
 <script src="logos.js"></script>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -1440,7 +1440,7 @@ async function openPrivacy(required){
       <dt>Quais dados</dt><dd>Nome do responsável técnico e dos executantes, horários de trabalho, número da OM, localidade, TAG do radar, respostas do checklist, observações e fotos (com data, hora e TAG carimbadas).</dd>
       <dt>Para quê</dt><dd>Somente para elaborar os relatórios de inspeção e manutenção dos equipamentos e anexá-los à OM.</dd>
       <dt>Onde ficam</dt><dd>${where}. Se você não entrar com uma conta, nenhum relatório, nome ou foto é enviado pela internet. O PDF só sai do celular quando você toca em Compartilhar ou Salvar.</dd>
-      <dt>Com uma conta</dt><dd>Se você entrar com e-mail e senha, uma cópia dos seus relatórios e fotos fica guardada no servidor do Google Firebase em São Paulo, para aparecer também no computador e em outros celulares. Só a sua conta tem acesso a ela. A cada ${HIST_DIAS} dias o histórico de relatórios é limpo. Em Ajustes, "Excluir minha conta" apaga a conta e tudo o que está nela.</dd>
+      <dt>Com uma conta</dt><dd>Se você entrar com e-mail e senha, consegue acessar a sua conta e ter acesso aos seus relatórios de qualquer dispositivo. A cada ${HIST_DIAS} dias o histórico de relatórios é limpo.</dd>
       <dt>O que não coletamos</dt><dd>Localização (GPS), contatos, identificadores do aparelho, dados de uso ou qualquer rastreamento.</dd>
       <dt>Fotos</dt><dd>Registre só o equipamento. Evite fotografar pessoas, rostos, placas de veículos e documentos.</dd>
       <dt>Por quanto tempo</dt><dd>Até você excluir. Depois de anexar o PDF no Dynaway, exclua o relatório do celular. Em Ajustes, "Excluir todos os meus dados" apaga tudo deste aparelho.</dd>
