@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.APP_CONFIG = {variant:"teste", db:"checklist-campo-teste"}; window.APP_VERSION = "v17"; window.APP_NEWS = [{"t":"Relatórios sobem sozinhos","d":"Ao entrar na conta, todos os relatórios do aparelho vão para a conta automaticamente."},{"t":"Sair com segurança","d":"Ao sair e apagar, o app só apaga do aparelho o que já está salvo na conta."}];</script>
+<script>window.APP_CONFIG = {variant:"teste", db:"checklist-campo-teste"}; window.APP_VERSION = "v17"; window.APP_NEWS = [{"t":"Relatórios sobem sozinhos","d":"Ao entrar na conta, todos os relatórios do aparelho vão para a conta automaticamente."},{"t":"Sair com segurança","d":"Ao sair e apagar, o app só apaga do aparelho o que já está salvo na conta."},{"t":"Esqueci a senha","d":"O link do e-mail abre o app com uma janela para criar a senha nova."}];</script>
 <script src="logos.js"></script>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -715,7 +715,9 @@ const stSave = st => kvSet("sync:" + conta.uid, st);
 const AUTH_MSG = {EMAIL_EXISTS:"Já existe uma conta com este e-mail. Toque em Entrar.", EMAIL_NOT_FOUND:"E-mail ou senha incorretos.",
   INVALID_PASSWORD:"E-mail ou senha incorretos.", INVALID_LOGIN_CREDENTIALS:"E-mail ou senha incorretos.", INVALID_EMAIL:"E-mail inválido.",
   MISSING_PASSWORD:"Digite a senha.", WEAK_PASSWORD:"A senha precisa ter pelo menos 6 caracteres.", USER_DISABLED:"Esta conta foi desativada.",
-  TOO_MANY_ATTEMPTS_TRY_LATER:"Muitas tentativas. Espere alguns minutos e tente de novo."};
+  TOO_MANY_ATTEMPTS_TRY_LATER:"Muitas tentativas. Espere alguns minutos e tente de novo.",
+  EXPIRED_OOB_CODE:"Este link para criar a senha nova expirou. Toque em Entrar e depois em Esqueci a senha para receber outro.",
+  INVALID_OOB_CODE:"Este link para criar a senha nova já foi usado. Toque em Entrar e depois em Esqueci a senha para receber outro."};
 async function fbAuth(op, body){
   let r; try { r = await fetch(FB.auth + op + "?key=" + FB.key, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)}); }
   catch(e){ throw new Error("Sem conexão com a internet. Tente de novo."); }
@@ -857,6 +859,7 @@ async function sair(perguntar){
 async function prepararConta(){
   const st = await stLoad();
   st.desde = st.desde || Date.now(); st.soLocal = [];
+  st.cursor = "";   // busca de novo tudo o que está na conta (o aparelho pode ter apagado relatórios ao sair)
   await stSave(st);
 }
 
@@ -1387,6 +1390,36 @@ function openLogin(){
     catch(e){ erro(e.message); }
   };
 }
+// link do e-mail "redefinir senha" (o Firebase manda para este app com ?mode=resetPassword&oobCode=...):
+// mostra a janela para criar a senha nova e já entra na conta
+async function checkNovaSenha(){
+  const q = new URLSearchParams(location.search), code = q.get("oobCode");
+  if(q.get("mode") !== "resetPassword" || !code) return false;
+  history.replaceState(null, "", location.pathname);
+  let email = "";
+  try { email = (await fbAuth("resetPassword", {oobCode:code})).email; }
+  catch(e){ openSheet(`<h3>Link expirado</h3><p>${esc(e.message)}</p>
+      <div class="acts"><button class="btn pri" id="rs-ok" type="button">Entendi</button></div>`); $("#rs-ok").onclick = () => closeSheet(); return true; }
+  openSheet(`<h3>Criar senha nova</h3><p style="margin-top:0">Conta: <b>${esc(email)}</b></p>
+    <div class="f"><label for="rs-1">Nova senha</label><input type="password" id="rs-1" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"></div>
+    <div class="f"><label for="rs-2">Repita a nova senha</label><input type="password" id="rs-2" autocomplete="new-password"></div>
+    <p class="lg-err" id="rs-err" role="alert"></p>
+    <div class="acts"><button class="btn pri" id="rs-ok" type="button">Salvar senha e entrar</button></div>`);
+  const erro = m => { $("#rs-err").textContent = m || ""; };
+  $("#rs-ok").onclick = async () => {
+    const a = $("#rs-1").value, b = $("#rs-2").value;
+    if(a.length < 6) return erro("A senha precisa ter pelo menos 6 caracteres.");
+    if(a !== b) return erro("As duas senhas não são iguais.");
+    busy(true, "Salvando a senha…");
+    try { await fbAuth("resetPassword", {oobCode:code, newPassword:a}); await entrar(email, a, false); }
+    catch(e){ busy(false); return erro(e.message); }
+    busy(false); closeSheet(); toast("Senha nova salva. Você entrou na sua conta", 3500);
+    await prepararConta(); renderSyncLine();
+    busy(true, "Enviando seus relatórios para a conta…"); await sync(); busy(false);
+    if(!R) renderHome();
+  };
+  return true;
+}
 function openSair(){
   openSheet(`<h3>Sair da conta?</h3>
     <p>Os relatórios continuam na sua conta. Neste aparelho, você escolhe se eles ficam ou se são apagados (bom para computador compartilhado). Só é apagado daqui o que já está salvo na conta.</p>
@@ -1448,7 +1481,7 @@ async function openPrivacy(required){
   sheetLocked = !!required;
   $("#pvOk").onclick = async () => { if(required){ await kvSet("privacy", {v:PRIVACY_V, at:Date.now()}); if(window.APP_VERSION) await kvSet("newsSeen", window.APP_VERSION); } closeSheet(); };
 }
-async function checkPrivacy(){ const p = await kvGet("privacy"); if(!p || p.v < PRIVACY_V) openPrivacy(true); else checkNews(); }
+async function checkPrivacy(){ if(await checkNovaSenha()) return; const p = await kvGet("privacy"); if(!p || p.v < PRIVACY_V) openPrivacy(true); else checkNews(); }
 
 /* ============ novidades da versão ============
    Depois de cada atualização, mostra uma vez um resumo curto do que mudou (lista em window.APP_NEWS,
