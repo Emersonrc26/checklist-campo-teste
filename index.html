@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.APP_CONFIG = {variant:"teste", db:"checklist-campo-teste"}; window.APP_VERSION = "v16"; window.APP_NEWS = [{"t":"Aviso de privacidade","d":"Texto da conta simplificado: acesse seus relatórios de qualquer dispositivo."}];</script>
+<script>window.APP_CONFIG = {variant:"teste", db:"checklist-campo-teste"}; window.APP_VERSION = "v17"; window.APP_NEWS = [{"t":"Relatórios sobem sozinhos","d":"Ao entrar na conta, todos os relatórios do aparelho vão para a conta automaticamente."},{"t":"Sair com segurança","d":"Ao sair e apagar, o app só apaga do aparelho o que já está salvo na conta."}];</script>
 <script src="logos.js"></script>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -577,7 +577,7 @@ const ICON = {
   pdf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>',
 };
 let toastT;
-function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2600); }
+function toast(msg, ms){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),ms||2600); }
 function busy(on, txt){ $("#busy").hidden=!on; if(txt) $("#busyTxt").textContent=txt; }
 
 /* ============ armazenamento local criptografado ============
@@ -831,7 +831,7 @@ async function sync(){
         delete st.enviados[id]; delete apagados[id];
       }
       await kvSet("apagados", apagados);
-      for(const m of (await dbList()).filter(m => !m.broken && !st.soLocal.includes(m.id) && (st.enviados[m.id] || 0) < m.updatedAt)){
+      for(const m of (await dbList()).filter(m => !m.broken && (st.enviados[m.id] || 0) < m.updatedAt)){
         if(R && R.id === m.id && $("#saveState").textContent !== "Salvo") continue;   // ainda salvando: vai na próxima
         const r = await dbGet(m.id); if(r) await enviar(r, st);
       }
@@ -852,17 +852,12 @@ async function sair(perguntar){
   if(perguntar){ await sync().catch(() => {}); }
   conta = null; await contaSave(); renderSyncLine();
 }
-// primeiro login neste aparelho: oferece levar para a conta os relatórios que já estavam aqui
-async function oferecerEnvio(){
+// ao entrar, todos os relatórios deste aparelho vão para a conta automaticamente (sem perguntar: assim nenhum fica
+// de fora e se perde depois). Quem tinha escolhido "só neste aparelho" numa versão anterior também passa a enviar.
+async function prepararConta(){
   const st = await stLoad();
-  const locais = (await dbList()).filter(m => !m.broken && st.enviados[m.id] === undefined && !st.soLocal.includes(m.id));
-  st.desde = st.desde || Date.now();
-  if(!locais.length){ await stSave(st); return true; }
-  const ok = await confirmSheet(`Enviar ${locais.length} ${locais.length > 1 ? "relatórios" : "relatório"} deste aparelho para a sua conta?`,
-    "Assim você vê esses relatórios também no computador ou em outro celular. Se preferir, eles ficam só neste aparelho.", "Enviar para a conta");
-  if(!ok) st.soLocal = [...new Set(st.soLocal.concat(locais.map(m => m.id)))];
+  st.desde = st.desde || Date.now(); st.soLocal = [];
   await stSave(st);
-  return ok;
 }
 
 const SKEY = "checklist-campo.settings";   // versões antigas guardavam os ajustes aqui, sem criptografia
@@ -1380,8 +1375,8 @@ function openLogin(){
     catch(e){ busy(false); return erro(e.message); }
     busy(false); closeSheet(); await kvSet("aceiteHistorico", {dias:HIST_DIAS, at:Date.now()});
     toast(criar ? "Conta criada" : "Conectado como " + conta.email);
-    await oferecerEnvio(); renderSyncLine();
-    busy(true, "Sincronizando seus relatórios…"); await sync(); busy(false);
+    await prepararConta(); renderSyncLine();
+    busy(true, "Enviando seus relatórios para a conta…"); await sync(); busy(false);
     if(!R) renderHome();
   };
   $("#lg-entrar").onclick = () => vai(false);
@@ -1394,16 +1389,19 @@ function openLogin(){
 }
 function openSair(){
   openSheet(`<h3>Sair da conta?</h3>
-    <p>Os relatórios continuam na sua conta. Neste aparelho, você escolhe se eles ficam ou se são apagados (bom para computador compartilhado).</p>
+    <p>Os relatórios continuam na sua conta. Neste aparelho, você escolhe se eles ficam ou se são apagados (bom para computador compartilhado). Só é apagado daqui o que já está salvo na conta.</p>
     <div class="acts" style="flex-direction:column;align-items:stretch">
       <button class="btn pri" id="sa-manter" type="button">Sair e manter neste aparelho</button>
       <button class="btn danger" id="sa-apagar" type="button">Sair e apagar deste aparelho</button>
       <button class="btn ghost" id="sa-nao" type="button">Cancelar</button></div>`);
   $("#sa-nao").onclick = () => closeSheet();
   $("#sa-manter").onclick = async () => { closeSheet(); busy(true, "Saindo…"); await sair(true); busy(false); renderHome(); toast("Você saiu da conta"); };
-  $("#sa-apagar").onclick = async () => { closeSheet(); busy(true, "Saindo…"); await sair(true);
-    for(const m of await dbList()) await dbDel(m.id);
-    busy(false); renderHome(); toast("Você saiu da conta e os relatórios foram apagados deste aparelho"); };
+  // só apaga do aparelho o que a conta já tem na mesma versão; o resto fica, para nada se perder
+  $("#sa-apagar").onclick = async () => { closeSheet(); busy(true, "Saindo…"); await sync().catch(() => {});
+    const st = await stLoad(); let ficou = 0;
+    for(const m of await dbList()){ if(!m.broken && st.enviados[m.id] === m.updatedAt) await dbDel(m.id); else ficou++; }
+    await sair(false); busy(false); renderHome();
+    toast(ficou ? `Você saiu da conta. ${ficou} ${ficou > 1 ? "relatórios ainda não estavam" : "relatório ainda não estava"} na conta e ${ficou > 1 ? "continuam" : "continua"} neste aparelho.` : "Você saiu da conta e os relatórios foram apagados deste aparelho", 4000); };
 }
 // LGPD: apaga os relatórios e fotos da conta (app oficial e de teste) e a própria conta; os aparelhos ficam com a cópia deles
 async function excluirConta(){
@@ -1425,7 +1423,6 @@ async function contaHTML(){
   return `<div class="privbox conta-box"><b>Conta</b><span>Conectado como <b>${esc(conta.email)}</b>.</span>
     <span>A cada ${HIST_DIAS} dias o histórico de relatórios é limpo.</span>
     <div class="acts"><button class="btn sm" id="stSync" type="button">Sincronizar agora</button>
-      ${st.soLocal.length ? `<button class="btn sm" id="stEnviar" type="button">Enviar relatórios deste aparelho</button>` : ""}
       <button class="btn sm" id="stSair" type="button">Sair da conta</button>
       <button class="btn sm danger" id="stDelConta" type="button">Excluir minha conta</button></div></div>`;
 }
@@ -1506,7 +1503,6 @@ async function openSettings(){
   const on = (id, fn) => { const b = $(id); if(b) b.onclick = fn; };
   on("#stLogin", () => { closeSheet(); openLogin(); });
   on("#stSync", async () => { busy(true, "Sincronizando…"); await sync(); busy(false); toast(syncSt.msg); });
-  on("#stEnviar", async () => { const st = await stLoad(); st.soLocal = []; await stSave(st); closeSheet(); busy(true, "Enviando relatórios…"); await sync(); busy(false); toast(syncSt.msg); });
   on("#stSair", () => openSair());
   on("#stDelConta", () => excluirConta());
   $("#stWipe").onclick = async () => {
